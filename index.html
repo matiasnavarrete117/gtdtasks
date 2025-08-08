@@ -13,7 +13,28 @@
             <input type="text" id="task-input" placeholder="Add a new task...">
             <button id="add-task-btn">Add Task</button>
         </div>
-        <ul id="task-list"></ul>
+        <div class="lists-container">
+          <div class="list">
+            <h2>Inbox</h2>
+            <ul id="inbox-list" class="task-list" data-list-name="inbox"></ul>
+          </div>
+          <div class="list">
+            <h2>Next Actions</h2>
+            <ul id="next-actions-list" class="task-list" data-list-name="next-actions"></ul>
+          </div>
+          <div class="list">
+            <h2>Waiting For</h2>
+            <ul id="waiting-for-list" class="task-list" data-list-name="waiting-for"></ul>
+          </div>
+          <div class="list">
+            <h2>Projects</h2>
+            <ul id="projects-list" class="task-list" data-list-name="projects"></ul>
+          </div>
+          <div class="list">
+            <h2>Someday/Maybe</h2>
+            <ul id="someday-maybe-list" class="task-list" data-list-name="someday-maybe"></ul>
+          </div>
+        </div>
     </div>
     <script src="script.js"></script>
 </body>
