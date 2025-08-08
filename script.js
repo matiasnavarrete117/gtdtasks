@@ -3,8 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const addTaskBtn = document.getElementById('add-task-btn');
     const listsContainer = document.querySelector('.lists-container');
 
-    const LISTS = ['inbox', 'next-actions', 'waiting-for', 'projects', 'someday-maybe'];
     let tasks = [];
+    let draggedTaskId = null;
 
     // --- Data Persistence ---
     const saveTasks = () => {
@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const taskItem = document.createElement('li');
         taskItem.classList.add('task-item');
         taskItem.dataset.id = task.id;
+        taskItem.draggable = true; // Make the item draggable
         if (task.completed) {
             taskItem.classList.add('completed');
         }
@@ -41,50 +42,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const actions = document.createElement('div');
         actions.classList.add('actions');
 
-        const moveBtn = document.createElement('button');
-        moveBtn.classList.add('move-btn');
-        moveBtn.innerHTML = '&#8644;'; // Move icon
-        moveBtn.dataset.action = 'open-move-dropdown';
-
         const deleteBtn = document.createElement('button');
         deleteBtn.classList.add('delete-btn');
         deleteBtn.textContent = '×';
         deleteBtn.dataset.action = 'delete';
 
-        actions.appendChild(moveBtn);
         actions.appendChild(deleteBtn);
 
         taskItem.appendChild(checkbox);
         taskItem.appendChild(label);
         taskItem.appendChild(actions);
 
-        // Move Dropdown (created but not shown)
-        taskItem.appendChild(createMoveDropdown(task));
-
         return taskItem;
     };
 
-    const createMoveDropdown = (task) => {
-        const dropdown = document.createElement('div');
-        dropdown.classList.add('move-dropdown');
-
-        LISTS.forEach(listName => {
-            if (listName !== task.list) {
-                const moveOption = document.createElement('button');
-                moveOption.textContent = `Move to ${listName.replace('-', ' ')}`;
-                moveOption.dataset.action = 'move';
-                moveOption.dataset.targetList = listName;
-                dropdown.appendChild(moveOption);
-            }
-        });
-        return dropdown;
-    };
-
     const renderTasks = () => {
-        // Clear all lists
         document.querySelectorAll('.task-list').forEach(list => list.innerHTML = '');
-
-        // Render each task into its correct list
         tasks.forEach(task => {
             const listEl = document.getElementById(`${task.list}-list`);
             if (listEl) {
@@ -94,38 +67,66 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Event Handlers ---
-    const handleListClick = (e) => {
+    const handleContainerClick = (e) => {
         const action = e.target.dataset.action;
         if (!action) return;
 
         const taskItem = e.target.closest('.task-item');
+        if (!taskItem) return;
+
         const taskId = Number(taskItem.dataset.id);
 
-        switch (action) {
-            case 'toggle':
-                toggleTask(taskId);
-                break;
-            case 'delete':
-                deleteTask(taskId);
-                break;
-            case 'open-move-dropdown':
-                toggleMoveDropdown(taskItem);
-                break;
-            case 'move':
-                const targetList = e.target.dataset.targetList;
-                moveTask(taskId, targetList);
-                break;
+        if (action === 'toggle') {
+            toggleTask(taskId);
+        } else if (action === 'delete') {
+            deleteTask(taskId);
         }
     };
 
-    const toggleMoveDropdown = (taskItem) => {
-        const dropdown = taskItem.querySelector('.move-dropdown');
-        // Close other dropdowns
-        document.querySelectorAll('.move-dropdown.show').forEach(d => {
-            if (d !== dropdown) d.classList.remove('show');
-        });
-        dropdown.classList.toggle('show');
+    // --- Drag and Drop Handlers ---
+    const handleDragStart = (e) => {
+        if (e.target.classList.contains('task-item')) {
+            draggedTaskId = Number(e.target.dataset.id);
+            e.dataTransfer.effectAllowed = 'move';
+            // Timeout to allow the DOM to update before adding class
+            setTimeout(() => {
+                e.target.classList.add('dragging');
+            }, 0);
+        }
     };
+
+    const handleDragEnd = (e) => {
+        if (e.target.classList.contains('task-item')) {
+            e.target.classList.remove('dragging');
+            draggedTaskId = null;
+        }
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault(); // Necessary to allow dropping
+        const list = e.target.closest('.list');
+        if (list) {
+            list.classList.add('drag-over');
+        }
+    };
+
+    const handleDragLeave = (e) => {
+        const list = e.target.closest('.list');
+        if (list) {
+            list.classList.remove('drag-over');
+        }
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        const list = e.target.closest('.list');
+        if (list && draggedTaskId) {
+            const targetList = list.querySelector('.task-list').dataset.listName;
+            moveTask(draggedTaskId, targetList);
+            list.classList.remove('drag-over');
+        }
+    };
+
 
     // --- Task Logic ---
     const addTask = () => {
@@ -136,10 +137,9 @@ document.addEventListener('DOMContentLoaded', () => {
             id: Date.now(),
             text: taskText,
             completed: false,
-            list: 'inbox' // Always add to inbox
+            list: 'inbox'
         };
         tasks.push(newTask);
-
         saveAndRender();
         taskInput.value = '';
         taskInput.focus();
@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const moveTask = (id, targetList) => {
         const task = tasks.find(task => task.id === id);
-        if (task && LISTS.includes(targetList)) {
+        if (task && task.list !== targetList) {
             task.list = targetList;
             saveAndRender();
         }
@@ -180,16 +180,14 @@ document.addEventListener('DOMContentLoaded', () => {
         taskInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') addTask();
         });
-        listsContainer.addEventListener('click', handleListClick);
 
-        // Close dropdown if clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.task-item')) {
-                document.querySelectorAll('.move-dropdown.show').forEach(d => {
-                    d.classList.remove('show');
-                });
-            }
-        });
+        // Event delegation for clicks and drag-drop
+        listsContainer.addEventListener('click', handleContainerClick);
+        listsContainer.addEventListener('dragstart', handleDragStart);
+        listsContainer.addEventListener('dragend', handleDragEnd);
+        listsContainer.addEventListener('dragover', handleDragOver);
+        listsContainer.addEventListener('dragleave', handleDragLeave);
+        listsContainer.addEventListener('drop', handleDrop);
     };
 
     init();
