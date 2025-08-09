@@ -23,6 +23,16 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- DOM Manipulation ---
+    const createEditMenu = () => {
+        const menu = document.createElement('div');
+        menu.className = 'edit-menu';
+        menu.innerHTML = `
+            <button data-action="rename">Rename</button>
+            <button data-action="delete" class="delete-btn">Delete</button>
+        `;
+        return menu;
+    };
+
     const createTaskElement = (task) => {
         const taskItem = document.createElement('li');
         taskItem.className = `task-item ${task.completed ? 'completed' : ''}`;
@@ -33,13 +43,20 @@ document.addEventListener('DOMContentLoaded', () => {
             <input type="checkbox" ${task.completed ? 'checked' : ''} data-action="toggle">
             <label>${task.text}</label>
             <div class="actions">
-                <button class="delete-btn" data-action="delete">×</button>
+                <button class="edit-btn" data-action="open-edit-menu">&#8942;</button>
             </div>
         `;
+        taskItem.querySelector('.actions').appendChild(createEditMenu());
         return taskItem;
     };
 
     const renderTasks = () => {
+        // Close any active rename inputs before re-rendering
+        const activeInput = document.querySelector('.rename-input');
+        if (activeInput) {
+            // This will trigger blur and either save or cancel
+            activeInput.blur();
+        }
         document.querySelectorAll('.task-list').forEach(list => list.innerHTML = '');
         tasks.forEach(task => {
             const listEl = document.getElementById(`${task.list}-list`);
@@ -53,32 +70,77 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Event Handlers ---
+    const toggleEditMenu = (taskItem) => {
+        const menu = taskItem.querySelector('.edit-menu');
+        document.querySelectorAll('.edit-menu.show').forEach(m => {
+            if (m !== menu) m.classList.remove('show');
+        });
+        menu.classList.toggle('show');
+    };
+
+    const handleRename = (taskItem, taskId) => {
+        toggleEditMenu(taskItem); // Close menu
+        const label = taskItem.querySelector('label');
+        label.style.display = 'none';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = label.textContent;
+        input.className = 'rename-input';
+
+        label.after(input);
+        input.focus();
+        input.select();
+
+        const finishRename = () => {
+            const newText = input.value.trim();
+            if (newText && newText !== label.textContent) {
+                updateTaskText(taskId, newText);
+            }
+            // The re-render from updateTaskText or a manual one will remove the input
+            // If we just want to cancel without saving, we need to re-render
+            if (!newText || newText === label.textContent) {
+                renderTasks();
+            }
+        };
+
+        input.addEventListener('blur', finishRename);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') input.blur(); // Trigger blur to finish
+            if (e.key === 'Escape') renderTasks(); // Cancel and re-render
+        });
+    };
+
     const handleContainerClick = (e) => {
         const target = e.target;
+        const action = target.closest('[data-action]')?.dataset.action;
+        if (!action) return;
 
-        // Check for 'add-to-list' action
-        const addBtn = target.closest('[data-action="add-to-list"]');
-        if (addBtn) {
-            targetList = addBtn.dataset.list;
+        if (action === 'add-to-list') {
+            targetList = target.closest('[data-action="add-to-list"]').dataset.list;
             updateInputPlaceholder();
             taskInput.focus();
             return;
         }
 
-        // Check for actions within a task item
         const taskItem = target.closest('.task-item');
-        if (taskItem) {
-            const actionTarget = target.closest('[data-action]');
-            if (actionTarget) {
-                const action = actionTarget.dataset.action;
-                const taskId = Number(taskItem.dataset.id);
+        if (!taskItem) return;
 
-                if (action === 'toggle') {
-                    toggleTask(taskId);
-                } else if (action === 'delete') {
-                    deleteTask(taskId);
-                }
-            }
+        const taskId = Number(taskItem.dataset.id);
+
+        switch (action) {
+            case 'open-edit-menu':
+                toggleEditMenu(taskItem);
+                break;
+            case 'toggle':
+                toggleTask(taskId);
+                break;
+            case 'delete':
+                deleteTask(taskId);
+                break;
+            case 'rename':
+                handleRename(taskItem, taskId);
+                break;
         }
     };
 
@@ -89,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Drag & Drop ---
+    // ... (Drag & Drop handlers remain the same) ...
     const handleDragStart = (e) => {
         if (e.target.classList.contains('task-item')) {
             draggedTaskId = Number(e.target.dataset.id);
@@ -151,6 +213,13 @@ document.addEventListener('DOMContentLoaded', () => {
             saveAndRender();
         }
     };
+    const updateTaskText = (id, newText) => {
+        const task = tasks.find(task => task.id === id);
+        if (task) {
+            task.text = newText;
+            saveAndRender();
+        }
+    };
     const saveAndRender = () => {
         saveTasks();
         renderTasks();
@@ -161,7 +230,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         document.body.dataset.theme = savedTheme;
         themeToggle.checked = savedTheme === 'dark';
-
         themeToggle.addEventListener('change', () => {
             const newTheme = themeToggle.checked ? 'dark' : 'light';
             document.body.dataset.theme = newTheme;
@@ -178,6 +246,12 @@ document.addEventListener('DOMContentLoaded', () => {
         addTaskBtn.addEventListener('click', addTask);
         taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addTask(); });
         taskInput.addEventListener('blur', handleInputBlur);
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.edit-menu') && !e.target.closest('[data-action="open-edit-menu"]')) {
+                document.querySelectorAll('.edit-menu.show').forEach(m => m.classList.remove('show'));
+            }
+        });
 
         listsContainer.addEventListener('click', handleContainerClick);
         listsContainer.addEventListener('dragstart', handleDragStart);
