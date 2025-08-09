@@ -54,22 +54,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Event Handlers ---
     const handleContainerClick = (e) => {
-        const action = e.target.dataset.action;
-        if (!action) return;
+        const target = e.target;
 
-        if (action === 'add-to-list') {
-            targetList = e.target.dataset.list;
+        // Check for 'add-to-list' action
+        const addBtn = target.closest('[data-action="add-to-list"]');
+        if (addBtn) {
+            targetList = addBtn.dataset.list;
             updateInputPlaceholder();
             taskInput.focus();
             return;
         }
 
-        const taskItem = e.target.closest('.task-item');
-        if (!taskItem) return;
+        // Check for actions within a task item
+        const taskItem = target.closest('.task-item');
+        if (taskItem) {
+            const actionTarget = target.closest('[data-action]');
+            if (actionTarget) {
+                const action = actionTarget.dataset.action;
+                const taskId = Number(taskItem.dataset.id);
 
-        const taskId = Number(taskItem.dataset.id);
-        if (action === 'toggle') toggleTask(taskId);
-        else if (action === 'delete') deleteTask(taskId);
+                if (action === 'toggle') {
+                    toggleTask(taskId);
+                } else if (action === 'delete') {
+                    deleteTask(taskId);
+                }
+            }
+        }
     };
 
     const handleInputBlur = () => {
