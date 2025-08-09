@@ -199,8 +199,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const handleRepetitionChange = () => {
             const frequency = freqSelect.value;
             intervalContainer.classList.toggle('hidden', frequency === 'none');
-            if (frequency === 'daily') intervalUnit.textContent = 'day(s)';
-            if (frequency === 'weekly') intervalUnit.textContent = 'week(s)';
+            if (frequency === 'daily') {
+                intervalUnit.textContent = 'day(s)';
+            } else if (frequency === 'weekly') {
+                intervalUnit.textContent = 'week(s)';
+            }
             setTaskRepetition(task.id, frequency, intervalInput.value);
         };
 
@@ -244,7 +247,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'delete': deleteTask(taskId); break;
                 case 'rename': handleRename(taskItem, taskId); break;
                 case 'add-subtask': showAddSubtaskInput(taskItem, taskId); break;
-                case 'details': toggleDetailsPane(taskItem, taskId); break;
+                case 'details':
+                    // Close the edit menu when opening the details pane
+                    toggleEditMenu(taskItem);
+                    toggleDetailsPane(taskItem, taskId);
+                    break;
             }
         }
     };
@@ -343,13 +350,9 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 task.repeat = { frequency, interval: Number(interval) };
             }
-            renderTasks();
-            const taskItem = document.querySelector(`.task-item[data-id='${id}']`);
-            if(taskItem) {
-                const pane = taskItem.querySelector('.details-pane');
-                pane.classList.add('show');
-                renderSchedulingControls(pane, task);
-            }
+            saveTasks();
+            // The UI is updated by the `handleRepetitionChange` in the event handler
+            // We don't need to re-render the whole page here.
         }
     };
     const addSubtask = (parentId, subtaskText) => {
