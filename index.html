@@ -8,30 +8,36 @@
 </head>
 <body>
     <div class="container">
-        <h1>My Tasks</h1>
+        <div class="header">
+            <h1>My Tasks</h1>
+            <div class="theme-switcher">
+                <input type="checkbox" id="theme-toggle">
+                <label for="theme-toggle" class="slider"></label>
+            </div>
+        </div>
         <div class="input-container">
             <input type="text" id="task-input" placeholder="Add a new task...">
             <button id="add-task-btn">Add Task</button>
         </div>
         <div class="lists-container">
           <div class="list">
-            <h2>Inbox</h2>
+            <h2>Inbox <span class="add-task-icon" data-action="add-to-list" data-list="inbox">+</span></h2>
             <ul id="inbox-list" class="task-list" data-list-name="inbox"></ul>
           </div>
           <div class="list">
-            <h2>Next Actions</h2>
+            <h2>Next Actions <span class="add-task-icon" data-action="add-to-list" data-list="next-actions">+</span></h2>
             <ul id="next-actions-list" class="task-list" data-list-name="next-actions"></ul>
           </div>
           <div class="list">
-            <h2>Waiting For</h2>
+            <h2>Waiting For <span class="add-task-icon" data-action="add-to-list" data-list="waiting-for">+</span></h2>
             <ul id="waiting-for-list" class="task-list" data-list-name="waiting-for"></ul>
           </div>
           <div class="list">
-            <h2>Projects</h2>
+            <h2>Projects <span class="add-task-icon" data-action="add-to-list" data-list="projects">+</span></h2>
             <ul id="projects-list" class="task-list" data-list-name="projects"></ul>
           </div>
           <div class="list">
-            <h2>Someday/Maybe</h2>
+            <h2>Someday/Maybe <span class="add-task-icon" data-action="add-to-list" data-list="someday-maybe">+</span></h2>
             <ul id="someday-maybe-list" class="task-list" data-list-name="someday-maybe"></ul>
           </div>
         </div>
