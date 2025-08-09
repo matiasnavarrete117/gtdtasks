@@ -374,9 +374,14 @@ h1 {
     border-color: var(--accent-color);
 }
 
+.details-control .interval-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .details-control input[type="number"] {
     width: 50px;
-    margin-left: 0.5rem;
 }
 
 .hidden {

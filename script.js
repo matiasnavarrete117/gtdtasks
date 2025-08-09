@@ -154,10 +154,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // **** REWRITTEN FUNCTION ****
     const renderSchedulingControls = (pane, task) => {
         pane.innerHTML = ''; // Clear previous controls
         const { dueDate, repeat } = task;
+        const repeatFrequency = repeat ? repeat.frequency : 'none';
+        const repeatInterval = repeat ? repeat.interval : 1;
 
         // Due Date Control
         const dateControl = document.createElement('div');
@@ -173,35 +174,41 @@ document.addEventListener('DOMContentLoaded', () => {
         // Repetition Control
         const repeatControl = document.createElement('div');
         repeatControl.className = 'details-control';
-        repeatControl.innerHTML = `<label>Repeat</label>`;
 
-        const buttonGroup = document.createElement('div');
-        buttonGroup.className = 'repeat-buttons';
+        const freqSelect = document.createElement('select');
+        freqSelect.id = `repeat-freq-${task.id}`;
+        freqSelect.innerHTML = `
+            <option value="none">Don't repeat</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+        `;
+        freqSelect.value = repeatFrequency;
 
-        const frequencies = ['none', 'daily', 'weekly'];
-        frequencies.forEach(freq => {
-            const btn = document.createElement('button');
-            btn.textContent = freq.charAt(0).toUpperCase() + freq.slice(1);
-            btn.dataset.action = 'set-repeat';
-            btn.dataset.frequency = freq;
-            if ((!repeat && freq === 'none') || (repeat?.frequency === freq)) {
-                btn.classList.add('active');
-            }
-            buttonGroup.appendChild(btn);
-        });
+        const intervalContainer = document.createElement('div');
+        intervalContainer.className = 'interval-container';
+        intervalContainer.innerHTML = `
+            <span>Every</span>
+            <input type="number" id="repeat-interval-${task.id}" min="1" value="${repeatInterval}">
+            <span class="interval-unit">day(s)</span>
+        `;
+        intervalContainer.classList.toggle('hidden', repeatFrequency === 'none');
 
-        const intervalInput = document.createElement('input');
-        intervalInput.type = 'number';
-        intervalInput.id = `repeat-interval-${task.id}`;
-        intervalInput.min = '1';
-        intervalInput.value = repeat?.interval || 1;
-        intervalInput.classList.toggle('hidden', !repeat || repeat.frequency === 'none');
-        intervalInput.addEventListener('change', () => {
-            setTaskRepetition(task.id, task.repeat.frequency, intervalInput.value);
-        });
+        const intervalInput = intervalContainer.querySelector('input');
+        const intervalUnit = intervalContainer.querySelector('.interval-unit');
 
-        repeatControl.appendChild(buttonGroup);
-        repeatControl.appendChild(intervalInput);
+        const handleRepetitionChange = () => {
+            const frequency = freqSelect.value;
+            intervalContainer.classList.toggle('hidden', frequency === 'none');
+            if (frequency === 'daily') intervalUnit.textContent = 'day(s)';
+            if (frequency === 'weekly') intervalUnit.textContent = 'week(s)';
+            setTaskRepetition(task.id, frequency, intervalInput.value);
+        };
+
+        freqSelect.addEventListener('change', handleRepetitionChange);
+        intervalInput.addEventListener('change', handleRepetitionChange);
+
+        repeatControl.appendChild(freqSelect);
+        repeatControl.appendChild(intervalContainer);
 
         pane.appendChild(dateControl);
         pane.appendChild(repeatControl);
@@ -238,15 +245,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'rename': handleRename(taskItem, taskId); break;
                 case 'add-subtask': showAddSubtaskInput(taskItem, taskId); break;
                 case 'details': toggleDetailsPane(taskItem, taskId); break;
-                case 'set-repeat':
-                    const frequency = target.dataset.frequency;
-                    const intervalInput = taskItem.querySelector(`#repeat-interval-${taskId}`);
-                    setTaskRepetition(taskId, frequency, intervalInput.value);
-                    break;
             }
         }
     };
-
     const handleInputBlur = () => {
         if (taskInput.value.trim() === '') {
             targetList = 'inbox';
@@ -342,9 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 task.repeat = { frequency, interval: Number(interval) };
             }
-            // Re-render to show/hide the interval input
             renderTasks();
-            // Find the task item again after re-render to show the pane
             const taskItem = document.querySelector(`.task-item[data-id='${id}']`);
             if(taskItem) {
                 const pane = taskItem.querySelector('.details-pane');
