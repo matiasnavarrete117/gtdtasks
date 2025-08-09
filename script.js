@@ -1,12 +1,16 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // ... (All the setup code remains the same) ...
+    // --- DOM Elements ---
     const taskInput = document.getElementById('task-input');
     const addTaskBtn = document.getElementById('add-task-btn');
     const listsContainer = document.querySelector('.lists-container');
     const themeToggle = document.getElementById('theme-toggle');
+
+    // --- State ---
     let tasks = [];
     let draggedTaskId = null;
     let targetList = 'inbox';
+
+    // --- Data Persistence ---
     const saveTasks = () => localStorage.setItem('tasks', JSON.stringify(tasks));
     const loadTasks = () => {
         try {
@@ -22,6 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
             tasks = [];
         }
     };
+
+    // --- DOM Manipulation ---
     const createEditMenu = () => {
         const menu = document.createElement('div');
         menu.className = 'edit-menu';
@@ -50,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
         taskItem.className = `task-item ${task.completed ? 'completed' : ''}`;
         taskItem.dataset.id = task.id;
         taskItem.draggable = true;
-        const dueDateHtml = task.dueDate ? `<span class="due-date">&#128197; ${task.dueDate}</span>` : '';
+        const dueDateHtml = task.dueDate ? `<span class="due-date">&#128197; ${new Date(task.dueDate).toLocaleDateString()}</span>` : '';
         taskItem.innerHTML = `
             <div class="task-content">
                 <input type="checkbox" ${task.completed ? 'checked' : ''} data-action="toggle">
@@ -155,43 +161,60 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderSchedulingControls = (pane, task) => {
-        pane.innerHTML = ''; // Clear previous controls
+        pane.innerHTML = '';
         const { dueDate, repeat } = task;
-        const repeatFrequency = repeat ? repeat.frequency : 'none';
-        const repeatInterval = repeat ? repeat.interval : 1;
 
-        // Due Date Control
+        // Date Picker
         const dateControl = document.createElement('div');
         dateControl.className = 'details-control';
-        dateControl.innerHTML = `<label for="due-date-${task.id}">Due Date</label>`;
-        const dateInput = document.createElement('input');
-        dateInput.type = 'date';
-        dateInput.id = `due-date-${task.id}`;
-        dateInput.value = dueDate || '';
-        dateInput.addEventListener('change', () => setTaskDueDate(task.id, dateInput.value));
-        dateControl.appendChild(dateInput);
+        dateControl.innerHTML = `<label>Due Date</label>`;
+        const datePickerContainer = document.createElement('div');
+        datePickerContainer.className = 'date-picker-container';
 
-        // Repetition Control
+        const daySelect = document.createElement('select');
+        daySelect.dataset.testid = 'day-select';
+        for (let i = 1; i <= 31; i++) daySelect.add(new Option(i, i));
+
+        const monthSelect = document.createElement('select');
+        monthSelect.dataset.testid = 'month-select';
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        months.forEach((month, i) => monthSelect.add(new Option(month, i)));
+
+        const yearSelect = document.createElement('select');
+        yearSelect.dataset.testid = 'year-select';
+        const currentYear = new Date().getFullYear();
+        for (let i = currentYear - 5; i <= currentYear + 10; i++) yearSelect.add(new Option(i, i));
+
+        if (dueDate) {
+            const date = new Date(dueDate);
+            daySelect.value = date.getUTCDate();
+            monthSelect.value = date.getUTCMonth();
+            yearSelect.value = date.getUTCFullYear();
+        }
+
+        const handleDateChange = () => {
+            const newDate = new Date(Date.UTC(yearSelect.value, monthSelect.value, daySelect.value));
+            setTaskDueDate(task.id, newDate.toISOString().split('T')[0]);
+        };
+
+        daySelect.addEventListener('change', handleDateChange);
+        monthSelect.addEventListener('change', handleDateChange);
+        yearSelect.addEventListener('change', handleDateChange);
+
+        datePickerContainer.append(daySelect, monthSelect, yearSelect);
+        dateControl.appendChild(datePickerContainer);
+
+        // Repetition Control (as before)
         const repeatControl = document.createElement('div');
         repeatControl.className = 'details-control';
-
         const freqSelect = document.createElement('select');
-        freqSelect.id = `repeat-freq-${task.id}`;
-        freqSelect.innerHTML = `
-            <option value="none">Don't repeat</option>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-        `;
-        freqSelect.value = repeatFrequency;
+        freqSelect.innerHTML = `<option value="none">Don't repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option>`;
+        freqSelect.value = repeat?.frequency || 'none';
 
         const intervalContainer = document.createElement('div');
         intervalContainer.className = 'interval-container';
-        intervalContainer.innerHTML = `
-            <span>Every</span>
-            <input type="number" id="repeat-interval-${task.id}" min="1" value="${repeatInterval}">
-            <span class="interval-unit">day(s)</span>
-        `;
-        intervalContainer.classList.toggle('hidden', repeatFrequency === 'none');
+        intervalContainer.innerHTML = `<span>Every</span><input type="number" min="1" value="${repeat?.interval || 1}"><span class="interval-unit">day(s)</span>`;
+        intervalContainer.classList.toggle('hidden', !repeat || repeat.frequency === 'none');
 
         const intervalInput = intervalContainer.querySelector('input');
         const intervalUnit = intervalContainer.querySelector('.interval-unit');
@@ -199,14 +222,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const handleRepetitionChange = () => {
             const frequency = freqSelect.value;
             intervalContainer.classList.toggle('hidden', frequency === 'none');
-            if (frequency === 'daily') {
-                intervalUnit.textContent = 'day(s)';
-            } else if (frequency === 'weekly') {
-                intervalUnit.textContent = 'week(s)';
-            }
+            if (frequency === 'daily') intervalUnit.textContent = 'day(s)';
+            else if (frequency === 'weekly') intervalUnit.textContent = 'week(s)';
             setTaskRepetition(task.id, frequency, intervalInput.value);
         };
-
         freqSelect.addEventListener('change', handleRepetitionChange);
         intervalInput.addEventListener('change', handleRepetitionChange);
 
@@ -221,14 +240,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const target = e.target;
         const action = target.closest('[data-action]')?.dataset.action;
         if (!action) return;
-
         if (action === 'add-to-list') {
             targetList = target.closest('[data-action="add-to-list"]').dataset.list;
             updateInputPlaceholder();
             taskInput.focus();
             return;
         }
-
         const subtaskItem = target.closest('.subtask-item');
         if (subtaskItem) {
             const parentId = Number(subtaskItem.dataset.parentId);
@@ -237,7 +254,6 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (action === 'delete-subtask') deleteSubtask(parentId, subtaskId);
             return;
         }
-
         const taskItem = target.closest('.task-item');
         if (taskItem) {
             const taskId = Number(taskItem.dataset.id);
@@ -247,11 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'delete': deleteTask(taskId); break;
                 case 'rename': handleRename(taskItem, taskId); break;
                 case 'add-subtask': showAddSubtaskInput(taskItem, taskId); break;
-                case 'details':
-                    // Close the edit menu when opening the details pane
-                    toggleEditMenu(taskItem);
-                    toggleDetailsPane(taskItem, taskId);
-                    break;
+                case 'details': toggleEditMenu(taskItem); toggleDetailsPane(taskItem, taskId); break;
             }
         }
     };
@@ -351,8 +363,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 task.repeat = { frequency, interval: Number(interval) };
             }
             saveTasks();
-            // The UI is updated by the `handleRepetitionChange` in the event handler
-            // We don't need to re-render the whole page here.
         }
     };
     const addSubtask = (parentId, subtaskText) => {

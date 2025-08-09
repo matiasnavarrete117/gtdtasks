@@ -380,6 +380,15 @@ h1 {
     gap: 0.5rem;
 }
 
+.date-picker-container {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.date-picker-container select {
+    flex-grow: 1;
+}
+
 .details-control input[type="number"] {
     width: 50px;
 }
