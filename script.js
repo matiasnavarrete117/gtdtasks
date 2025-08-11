@@ -350,7 +350,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const task = tasks.find(task => task.id === id);
         if (task) {
             task.dueDate = date;
-            saveAndRender();
+            saveTasks(); // Save first
+            renderTasks(); // Then re-render the whole UI
+
+            // Now, find the re-rendered task item and re-open its details pane
+            const taskItem = document.querySelector(`.task-item[data-id='${id}']`);
+            if (taskItem) {
+                const pane = taskItem.querySelector('.details-pane');
+                pane.classList.add('show');
+                renderSchedulingControls(pane, task);
+            }
         }
     };
     const setTaskRepetition = (id, frequency, interval) => {
