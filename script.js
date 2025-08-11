@@ -185,12 +185,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentYear = new Date().getFullYear();
         for (let i = currentYear - 5; i <= currentYear + 10; i++) yearSelect.add(new Option(i, i));
 
-        if (dueDate) {
-            const date = new Date(dueDate);
-            daySelect.value = date.getUTCDate();
-            monthSelect.value = date.getUTCMonth();
-            yearSelect.value = date.getUTCFullYear();
-        }
+        const dateToDisplay = dueDate ? new Date(dueDate) : new Date();
+
+        daySelect.value = dateToDisplay.getUTCDate();
+        monthSelect.value = dateToDisplay.getUTCMonth();
+        yearSelect.value = dateToDisplay.getUTCFullYear();
 
         const handleDateChange = () => {
             const newDate = new Date(Date.UTC(yearSelect.value, monthSelect.value, daySelect.value));
